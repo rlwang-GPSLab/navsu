@@ -39,6 +39,7 @@ mu = 3.986005e14; % WGS-84 value in m^3/s^2
 OMEGA_DOTe = 7.2921151467e-5; % WGS-84 value in rad/s
 
 if strcmp(constellation,'BDS')
+    mu = 3.986004418e14; % WGS-84 value in m^3/s^2
     OMEGA_DOTe = 7.292115e-5; 
 end
 
@@ -82,7 +83,7 @@ for loop = 1:tmN
     
     % look for new uploads (or check secondary health set)
     switch constellation 
-        case 'GPS'
+        case {'GPS'}
             % find the most recent ephemeris associated with an upload
             jdx = find(eph.PRN == prn(loop) & mod(eph.Toe,7200) ~= 0);
             if ~isempty(jdx)
@@ -188,6 +189,41 @@ if strcmp(constellation,'BDS')
     tsE = tsE - 14; % need to adjust for Beidou timescale leapseconds
 end
 
+% timeRelCorr = [0
+% 0
+% 0
+% 0
+% 0
+% 0.069140851178002
+% 0
+% 0
+% 0
+% 0
+% 0.071798205626700
+% 0.072407247610139
+% 0
+% 0.082091162885111
+% 0
+% 0
+% 0.079916270585815
+% 0
+% 0.070673546836285
+% 0.083290205356234
+% 0
+% 0.077500811148446
+% 0
+% 0.070577539564067
+% 0.081904901595836
+% 0
+% 0
+% 0
+% 
+% 0
+% 0
+% 0
+% 0];
+% tsE = tsE - timeRelCorr(prn(1));
+
 % check fit interval
 if WARNING_ENABLE 
     for iWarn = find(tsE > eph.Fit_interval(iEph) * 3600)'
@@ -289,15 +325,84 @@ pos.z_dot(haveEph) = yo_dot .* sin(uri(:, 3)) + yo .* cos(uri(:, 3)) .* uri_dot(
 toC = tmArray(haveEph) ...
       - eph.GPS_week_num(iEph) * 604800 ...
       - eph.Toc(iEph); % time from clock reference epoch
+
+if strcmp(constellation,'BDS')
+    toC = toC - 14; % need to adjust for Beidou timescale leapseconds
+end
+
 pos.clock_drift(haveEph) = eph.clock_drift(iEph) + eph.clock_drift_rate(iEph) .* toC;
 
 pos.clock_bias(haveEph) = eph.clock_bias(iEph) + pos.clock_drift(haveEph) .* toC;
 
 if dualFreq 
-    % Beidou dual frequency TGD offsets
-    kf = (1561.098/1207.14)^2;
-    tgdOffset = (eph.TGD2(iEph)-kf*eph.TGD(iEph)) ./ (1-kf);
+    % added RW 3/12/2024
+    C = 2.99792458e8; mu = 3.986004418e14; 
+%     relCorr = -2/(299792458^2) * sum([pos.x pos.y pos.z] .* [pos.x_dot pos.y_dot pos.z_dot], 2);
+    relCorr = -2*(sqrt(mu))/C^2 * e .* eph.sqrtA(iEph) .* sin(E);
+    if length(e) == length(haveEph)
+        pos.clock_bias(haveEph) = pos.clock_bias(haveEph) + relCorr(haveEph);
+    end
+
+%     try 
+%         pos.clock_bias(haveEph) = pos.clock_bias(haveEph) + relCorr(haveEph);
+%     catch 
+%         warning('cannot add relCorr')
+%     end
+
+    % Beidou dual frequency TGD offsets - original Kaz
+    % B1_I = 1561.098 MHz carrier frequency
+    % B2b_I = 1207.15 MHz carrier frequency
+%     kf = (1561.098/1207.14)^2;
+%     tgdOffset = (eph.TGD2(iEph)-kf*eph.TGD(iEph)) ./ (1-kf);
+%     pos.clock_bias(haveEph) = pos.clock_bias(haveEph) - tgdOffset;
+
+
+   % added by RW 03-11-24
+    B1f = 1561.098;   % B1I, BDS-2 
+    B1I = 1561.098;
+    B1C = 1575.42;
+%     B1f = 1575.42;  % B1C signal, BDS-3
+%     B2f = 1176.45;   % B2a signal from BDS-3
+    B2f = 1207.14;  % B2I signal BDS-2, B2b signal BDS-3
+    B3f = 1268.52;  % B3I signal, BDS-3
+
+%     tgdOffset = (B1f^2 / (B1f^2 - B2f^2)) * eph.TGD(iEph) - (B2f^2 / (B1f^2 - B2f^2)) * eph.TGD2(iEph);
+%     tgdOffset = eph.TGD2(iEph);
+%     pos.clock_bias(haveEph) = pos.clock_bias(haveEph) + tgdOffset;
+
+%     from ICD 03-9-24 doesn't work
+%     tgdOffset = eph.TGD(iEph) + eph.TGD2(iEph);
+%     tgdOffset = eph.TGD(iEph);
+%     tgdOffset = eph.TGD2(iEph);
+%     clk_B1 = pos.clock_bias(haveEph) - eph.TGD(iEph);
+%     clk_B2 = pos.clock_bias(haveEph) - eph.TGD2(iEph);
+%     pos.clock_bias(haveEph) = (B1f^2 / (B1f^2 - B2f^2)) * clk_B1 - (B2f^2 / (B1f^2 - B2f^2)) * clk_B2;
+%     clkBiasB1 = pos.clock_bias(haveEph) - eph.TGD(iEph);
+%     clkBiasB2 = pos.clock_bias(haveEph) - eph.TGD2(iEph);
+%     clkBiasB1B2free = (B1f^2 * clkBiasB1 - B2f^2 * clkBiasB2) / (B1f^2 - B2f^2);
+%     pos.clock_bias(haveEph) = clkBiasB1B2free;
+
+% one last ionofree attempt
+%     tgdOffset = eph.TGD(iEph);
+%     beta = B1f^2/B3f^2; k = B2f^2/B3f^2;
+%     clkBiasB1 = pos.clock_bias(haveEph) - beta/(beta-1)*eph.TGD(iEph);
+%     clkBiasB2 = pos.clock_bias(haveEph) - k/(k-1)*eph.TGD2(iEph);
+%     clkBiasB1B2free = (B1f^2 * clkBiasB1 - B2f^2 * clkBiasB2) / (B1f^2 - B2f^2);
+%     pos.clock_bias(haveEph) = clkBiasB1B2free;
+
+% final ionofree attempt
+%     alpha = B1f^2/B2f^2;
+%     tgdOffset = (alpha*eph.TGD(iEph) - eph.TGD2(iEph))/(alpha - 1);
+% %     pos.clock_bias(haveEph) = pos.clock_bias(haveEph) - tgdOffset;
+%     beta = B1I^2/B3f^2;
+%     pos.clock_bias(haveEph) = pos.clock_bias(haveEph) - beta/(beta-1)*tgdOffset;
+
+    % 03-19-24 corrected mostly
+    beta = B1f^2/B3f^2;
+    tgdOffset = beta/(beta-1)*eph.TGD(iEph);
+%     tgdOffset = eph.TGD(iEph) + eph.TGD2(iEph);
     pos.clock_bias(haveEph) = pos.clock_bias(haveEph) - tgdOffset;
+    
 end
 
 %% Relativisitic effect, other elements
@@ -330,6 +435,9 @@ switch constellation
                             - eph.TTOM(iLastU(haveEph));
 
     case 'BDS'
+%         pos.tslu(haveEph) = tmArray(haveEph) ...
+%                     - eph.GPS_week_num(iLastU(haveEph)) * 604800 ...
+%                     - eph.TTOM(iLastU(haveEph));
         pos.tslu(haveEph) = aodi;
 end
 pos.toe_m_ttom(haveEph)  = eph.Toe(iEph) - eph.TTOM(iEph);

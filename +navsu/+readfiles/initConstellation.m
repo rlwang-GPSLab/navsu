@@ -20,7 +20,8 @@ function [constellations] = initConstellation(GPS_flag, GLO_flag, GAL_flag, BDS_
 GPS_PRN = [1:32];
 GLO_PRN = [1:24];
 GAL_PRN = [1:36];
-BDS_PRN = [1:37];
+% BDS_PRN = [1:37];
+BDS_PRN = [1:62]; % RW added 02-16-2024 
 QZS_PRN = [193:196];
 SBS_PRN = 0; %SBAS ranging not supported yet
 

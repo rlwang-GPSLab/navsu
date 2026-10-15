@@ -121,6 +121,27 @@ else
             eph.gal = ephi.gal;
         end
     end
+
+    % added 01/31/24 RW
+    if settings.constUse(4)
+        % BDS
+        if isfield(settings,'bdsNavSource') && strcmp(settings.bdsNavSource,'s')
+            BfileNameFormat = '%4d/sugl%03d0.%02db';
+            BpathName = settings.suglBdsDir;
+            BFileName = sprintf(BfileNameFormat, yr, doy, mod(yr, 100));
+        else
+            % MGEX file
+            BFileName = brdmFilename;
+            BpathName = brdmPath;
+        end
+        constellations = navsu.readfiles.initConstellation(0,0,0,1,0);
+        
+        BFileNameFull{1} = fullfile(BpathName, BFileName);
+        if ~FLAG_NO_LOAD
+            ephi = navsu.readfiles.loadRinexNav(BFileNameFull{1},'constellations',constellations, 'outFormat','array');
+            eph.bds = ephi.bds;
+        end
+    end
     
         
 end

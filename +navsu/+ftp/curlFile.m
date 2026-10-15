@@ -1,4 +1,4 @@
-function [yearChange,dayChange] = curlFile(yearList,dayList,ftpStruc,netrcFile,cookieFile,varargin)
+function [yearChange,dayChange, desired] = curlFile(yearList,dayList,ftpStruc,netrcFile,cookieFile,varargin)
 % curlFile
 % DESCRIPTION:
 %   This should just be called by navsu.ftp.download. Downloads products

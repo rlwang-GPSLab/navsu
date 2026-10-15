@@ -23,7 +23,6 @@ function [Clck, CFileName,CFileNameFull] = loadCFst(Year, dayNum, settings, FLAG
 %   .gpsClkCenter      - 3 letter IGS Analysis Center for GPS corrections
 %   .gloClkCenter      - 3 letter IGS Analysis Center for GLO corrections
 %   .galClkCenter      - 3 letter IGS Analysis Center for GAL corrections
-%   .GloPclkSource     - this should be set to 'MGEX'- this is old and bad
 %
 % OPTIONAL INPUTS:
 %  FLAG_NO_LOAD        - True = do not parse the file, just output the name
@@ -146,15 +145,69 @@ else
                 PpathNameFormat = '/%d/%03d/';
                 pathStr = fullfile(settings.preciseProdDir, ...
                                    sprintf(PpathNameFormat, yr, dayNum));
-                
-                fname1 = [center3 '0MGXFIN_' num2str(Year,'%04d')  ...
-                          num2str(dayNum,'%03d')];
+%                 if strcmp(center3, 'COD') % added 7/19/24 RW to read in Rapid Prod
+                if strcmp(center3, 'COD') & settings.gpsClkCenter == 'com' % added 10-20-24 RW
+                    % read 30 sec data
+                    if strcmp(settings.solType, 'fin')
+%                         fname2 = [center3 '0MGXFIN_' num2str(Year,'%04d')  ...
+%                               num2str(dayNum,'%03d')];
+                        fname2 = [center3 '*' num2str(Year,'%04d')  ...
+                              num2str(dayNum,'%03d') '*' '30S' '*'];
+                    elseif strcmp(settings.solType, 'rap')
+                        jdCurr = navsu.time.doy2jd(Year, dayNum);
+                        jdCh   = navsu.time.doy2jd(2023, 142); % date of last rapid old naming convention
+                        if jdCurr <= jdCh
+                            fname2 = ['HR_' num2str(mod(Year, 100)) num2str(dayNum,'%03d') '0'];
+                        else
+                           fname2 = [center3 '0OPSRAP_' num2str(Year,'%04d')  ...
+                                  num2str(dayNum,'%03d')];
+                        end
+                    end
+%                     fname2 = fname1;
+                elseif strcmp(center3, 'COD') & settings.gpsClkCenter == 'cod'     % read 5 sec data
+                    jdTemp = navsu.time.doy2jd(Year, dayNum);
+                    [gpsWeek, gpsSOW] = navsu.time.jd2gps(jdTemp);
+                    if gpsWeek <= 2237
+                        fname2 = [lower(center3) num2str(gpsWeek) num2str(floor(gpsSOW/86400))];
+                    else
+                        fname2 = [center3 '0OPSFIN_' num2str(Year,'%04d')  ...
+                              num2str(dayNum,'%03d')];
+                    end
+                elseif strcmp(center3, 'GFZ') & strcmp(settings.solType, 'rap')
+%                     fname1 = ['GBM0MGXRAP_' num2str(Year,'%04d')  ...
+%                               num2str(dayNum,'%03d')];
+                    fname1 = ['0MGXRAP_' num2str(Year,'%04d')  ...
+                              num2str(dayNum,'%03d')];
+                    fname2 = fname1;
+                else
+                    fname1 = [center3];
+                    fname2 = fname1;
+                end
                 % check the directory for a file from that day
+                % make an exception for GPS 5 second rate data
                 diri = dir(pathStr);
-                fileInd = find(contains({diri.name},fname1) ...
-                             & ~contains({diri.name},'.gz') ...
-                             & contains({diri.name},'.CLK'));
-                
+%                 dateStr = strrep(fname2, '*', '');
+%                 if any(contains({diri.name}, fname2))
+                if any(contains({diri.name}, center3))
+                    fname1 = fname2;
+%                     fileInd = find(contains({diri.name},fname1) ...
+%                                  & ~contains({diri.name},'.gz') ...
+%                                  & (contains({diri.name},'.CLK') | contains({diri.name},'clk_05s')));
+
+                    fileInd = find(contains({diri.name}, '30S') ...
+                                 & contains({diri.name}, center3) ...   
+                                 & ~contains({diri.name},'.gz') ... % only a temp sol bc this ignores existence of other centers
+                                 & (contains({diri.name},'.CLK') | contains({diri.name},'clk_05s')));
+                elseif any(contains({diri.name}, fname1))
+                    fileInd = find(contains({diri.name},fname1) ...
+                                 & ~contains({diri.name},'.gz') ...
+                                 & contains({diri.name},'.CLK')); 
+                else
+                    fileInd = find(contains({diri.name},center3) ...
+                         & ~contains({diri.name}, runSettings.solType) ...
+                         & ~contains({diri.name},'.gz') ...
+                         & contains({diri.name},'.CLK')); 
+                end
                 if ~isempty(fileInd)
                     tmp = pathStr;
                     CFileName = diri(fileInd).name;
@@ -336,7 +389,7 @@ else
         diri = dir(pathStr);
         fileInd = find(contains({diri.name}, fname1) ...
                      & ~contains({diri.name}, '.gz') ...
-                     & ~contains({diri.name}, 'CLK'));
+                     & contains({diri.name}, 'CLK'));
         
         if ~isempty(fileInd)
             tmp = pathStr;
@@ -352,7 +405,7 @@ else
         end
         
         if ~FLAG_NO_LOAD
-            [Cepochs, Cclk, Cclk_sig] =  navsu.readfiles.readRinexClock(fullfile(tmp, CFileName),35,'C');
+            [Cepochs, Cclk, Cclk_sig] =  navsu.readfiles.readRinexClock(fullfile(tmp, CFileName),46,'C');
             Cepochs = Cepochs + 86400*(gps_day);
             
             Clck.Cepochs  = Cepochs;

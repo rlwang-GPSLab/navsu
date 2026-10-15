@@ -47,21 +47,24 @@ end
 
 if nargin < 8
     nearestAdjust = true;
+    nearestAdjust = false;      % added 10-20-2024 RW for dev 
 end
 
-x = x(idx);
-y = y(idx, :);
-var = var(idx);
+% x = x(idx);
+% y = y(idx, :);
+% var = var(idx);
+% 
+% xx = xx(idx); % added 12/14 RW
 
 % make sure enough points remain to fit
-if size(y, 1) < m_order + 1
-%     warning('Warning bad fit in polyinterp\n');
-    yy     = NaN(length(xx), size(y, 2));
-    yy_dot = NaN(length(xx), size(y, 2));
-    chi2   = NaN;    
-    p = NaN(size(y, 2), m_order+1);
-    return
-end
+% if size(y, 1) < m_order + 1
+% %     warning('Warning bad fit in polyinterp\n');
+%     yy     = NaN(length(xx), size(y, 2));
+%     yy_dot = NaN(length(xx), size(y, 2));
+%     chi2   = NaN;    
+%     p = NaN(size(y, 2), m_order+1);
+%     return
+% end
 
 
 
@@ -79,7 +82,7 @@ end
 
 n = size(xx, 1);
 xx0 = xx;
-xx = [xx; x];
+xx = [xx; x];   %????
 
 if isempty(polyIn)
     p = navsu.geo.polyfit2(xp, yp, m_order);

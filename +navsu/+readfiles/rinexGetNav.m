@@ -502,7 +502,8 @@ entryCounts = num2cell(hist(entries,1:8)); %#ok<HIST>
 
 % Check if we have any data to work with...
 if isempty(entries)
-    % This is the case for GAL Year 2019 Days 193:196
+    % This is the case for GAL Year 2019 Days 193:196, missing broadcast
+    % ephem
     error('In input file %s: no GNSS navigation data entries found!\n', file_nav);
 end
 
@@ -871,16 +872,31 @@ for constIdx = 1:length(constData)
             Omegadot = data{27};
             
             idot       = data{28};
-            code_on_L2 = data{29};
-            weekno     = 1356 + data{30}; % directly convert to GPS week number
-            L2flag     = data{31};
+%%%%%%%%%%%%%% added 02/16/2024 RW: fixing spares in BDS %%%%%%%%%%%%
+            if mode(data{29}) == 0 || isnan(mode(data{31}))
+                noSpareDataBDS = 0;
+                spare1 = data{29 - noSpareDataBDS};
+            else
+                noSpareDataBDS = 1;
+                spare1 = nan(length(data{29 - noSpareDataBDS}),1);
+            end
+%             code_on_L2 = data{29 - noSpareDataBDS};  % RW: this should be spare for BDS
+            weekno     = 1356 + data{30 - noSpareDataBDS}; % directly convert to GPS week number
+            if mode(data{31 - noSpareDataBDS}) == 0 || isnan(mode(data{31 - noSpareDataBDS}))
+                noSpareDataBDS = noSpareDataBDS + 0;
+                spare2     = data{31 - noSpareDataBDS};  % RW: this should be spare for BDS
+            else
+                noSpareDataBDS = noSpareDataBDS + 1;
+                spare2     = nan(length(data{31 - noSpareDataBDS}),1);  % RW: this should be spare for BDS
+            end
+%             L2flag     = data{31 - noSpareDataBDS};  % RW: this should be spare for BDS
             
-            svaccur  = data{32};
-            svhealth = data{33};
-            tgd      = data{34};
-            tgd2     = data{35};
+            svaccur  = data{32 - noSpareDataBDS};
+            svhealth = data{33 - noSpareDataBDS};
+            tgd      = data{34 - noSpareDataBDS};
+            tgd2     = data{35 - noSpareDataBDS};
             
-            tom = data{36};
+            tom = data{36 - noSpareDataBDS};
             %             aoc = data{37};
             % If time of message is invalid (garbage data input) use 2 hours
             % before ephemeris time.
@@ -888,7 +904,7 @@ for constIdx = 1:length(constData)
                 tom = toe-7200;
             end
             
-            fit_int = data{37};
+            iodc = data{37 - noSpareDataBDS};     % RW: IODC issue of data clock for BDS
             
             Eph(1,:)  = svprn;
             Eph(2,:)  = year-2000;
@@ -917,9 +933,9 @@ for constIdx = 1:length(constData)
             Eph(25,:) = omega;
             Eph(26,:) = Omegadot;
             Eph(27,:) = idot;
-            Eph(28,:) = code_on_L2;
+            Eph(28,:) = spare1;
             Eph(29,:) = weekno;
-            Eph(30,:) = L2flag;
+            Eph(30,:) = spare2;
             Eph(31,:) = svaccur;
             Eph(32,:) = svhealth;
             Eph(33,:) = tgd;
@@ -937,16 +953,24 @@ for constIdx = 1:length(constData)
             
             Eph(34,:) = tgd2;
             Eph(35,:) = tom;
-            Eph(36,:) = fit_int;
+            Eph(36,:) = iodc;
             
             if suglFlag
-                suglInfo1 = data{38};
-                suglInfo2 = data{39};
+                suglInfo1 = data{38 - noSpareDataBDS};
+                suglInfo2 = data{39 - noSpareDataBDS};
                 
                 Eph(37,:) = suglInfo1;
                 Eph(38,:) = suglInfo2;
             end
             
+% testing RW 03/13/2024
+            if ~isnan(mode(spare1)) && mode(spare1) ~= 0
+                disp('Spare1 not nan or zeros!')
+            end
+            if ~isnan(mode(spare2)) && mode(spare2) ~= 0
+                disp('Spare2 not nan or zeros!')
+            end
+
             if 1 %LSB_RECOVERY
                 piGPS = 3.1415926535898;
                 indices = [8:27 33 34];

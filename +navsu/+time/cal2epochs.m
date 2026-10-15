@@ -17,13 +17,14 @@ function epochs = cal2epochs(yr,mn,dy,hr,min,sec)
 
 % Allow for single vector input
 if nargin == 1 && size(yr,2) == 6
-   mn  = yr(:,2);
-   dy  = yr(:,3);
-   hr  = yr(:,4);
-   min = yr(:,5);
-   sec = yr(:,6);
-   yr  = yr(:,1);
+   mn  = double(yr(:,2));
+   dy  = double(yr(:,3));
+   hr  = double(yr(:,4));
+   min = double(yr(:,5));
+   sec = double(yr(:,6));
+   yr  = double(yr(:,1));
 end
+
 
 jd = navsu.time.cal2jd(yr,mn,dy);
 [gpsweek,sow] = navsu.time.jd2gps(jd);

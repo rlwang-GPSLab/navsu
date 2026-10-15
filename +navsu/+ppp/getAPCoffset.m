@@ -27,10 +27,16 @@ end
 SVN = navsu.svprn.prn2svn(PRN, navsu.time.epochs2jd(epochs), constInds);
 
 % get logical matrix of atx data matching the PRNs
+% 
 logMat = ([atxData.type] == constInds ...
         & [atxData.svn] == SVN ...
         & [atxData.epochStart] <= epochs ...
         & [atxData.epochEnd] >= epochs)';
+
+% logMat = ([atxData.type] == constInds ...
+%         & [atxData.prn] == PRN ...
+%         & [atxData.epochStart] <= epochs ...
+%         & [atxData.epochEnd] >= epochs)';
 
 % get indices within atxData
 nATX = length(atxData);
@@ -46,7 +52,22 @@ offset = NaN(3, length(PRN));
 
 for ii = 1:length(adx) 
     if ~isempty(atxData(adx(ii)).apc)
-        offset(:, sdx(ii)) = atxData(adx(ii)).apc(1,:) * 1e-3;
+        switch constInds(1)
+            case '3'    % GAL
+                offset(:, sdx(ii)) = (2.26*atxData(adx(ii)).apc(4,:) - 1.26*atxData(adx(ii)).apc(1,:)) * 1e-3;
+            otherwise    % GPS, GLO, BDS, etc.
+                try
+                    if ismember(atxData(adx(ii)).prn, [4, 11, 14, 18, 23, 28])
+%                         offset(:,sdx(ii)) = offset(:,sdx(ii)).*[-1; -1; 1] - [0;0;89.35].*1e-3;
+%                         offset(:, sdx(ii)) = (atxData(adx(ii)).apc(1,:) + [0 0 500])* 1e-3;
+                        offset(:, sdx(ii)) = atxData(adx(ii)).apc(1,:) * 1e-3;
+                    else
+                        offset(:, sdx(ii)) = atxData(adx(ii)).apc(1,:) * 1e-3;
+                    end
+                catch
+                    print('setting a dummy breakpoint')
+                end
+        end
     end
 end
 

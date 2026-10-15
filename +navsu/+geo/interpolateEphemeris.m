@@ -13,13 +13,18 @@ Cclock_sig   = Clck.Cclk_sig(prn,:);
 
 % Set up interpolation constants
 % n     = settings.nPolyFit; % number of nominal points to use for polynominal fit
-n     = 9;                  % RW - 8/22 test, there should be 9 points fed into polyinterp
+% n     = 9;                  % RW - 8/22 test, there should be 9 points fed into polyinterp
+% n     = 59;                  % RW - 12/14 test, 5-sec rate, X points fed into fed into polyinterp
 pfit  = settings.pfit;     % order of fit for position interpolation
 cdfit = settings.cdfit;    % order of fit for clock interpolation
 
 process_interval = Cepochs(2) - Cepochs(1);
 n_epochs_day = 86400/process_interval;
 cdecimate = Peph.Epoch_interval/process_interval; %how many high rate epochs per low rate epoch
+
+% n     = cdecimate - 1;                  % RW - 8/22 test, there should be 9 points fed into polyinterp
+n     = settings.nPolyFit;              % RW - 10/18/2024 test, there should be 9 points fed into polyinterp
+pfit  = n;
 
 % rcidx = (1:n) - n/2;                % relative indices to fit
 rcidx = (1:n) - floor(n/2);         % RW - 8/22 test, indices can't be noninteger

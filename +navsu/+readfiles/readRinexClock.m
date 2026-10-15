@@ -76,7 +76,9 @@ for i = 1:length(prns)
     jdx = round(hours*(3600/dEpochs) + minutes*(60/dEpochs) + seconds/dEpochs) + 1;
     indG(isnan(jdx)) = [];
     jdx(isnan(jdx)) = [];
-    clk(prns(i),jdx) = temp.data(indG,8);
+    if prns(i) <= nMaxPrn
+        clk(prns(i),jdx) = temp.data(indG,8);
+    end
     k = find(mod(minutes,5) == 0 & mod(seconds, 60) ==0);
     
 %     clk_sig(prns(i),jdx(k)) = temp.data(indG(k),9);

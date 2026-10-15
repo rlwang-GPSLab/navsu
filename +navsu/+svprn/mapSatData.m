@@ -56,9 +56,14 @@ if numel(const) == 1
 end
 
 if nargin < 6
-    % Source of database (only applies to GLONASS)
     source = ones(size(const));
+    % Source of database (for GLONASS)
     source(const == 2) = 3;
+    
+    %^^^ added RW 02-04-2024
+    % Source of database (for BEIDOU)
+%     source(const == 4) = 2;
+    %^^^
 elseif numel(source) == 1
     source = source * ones(size(const));
 elseif isrow(source)

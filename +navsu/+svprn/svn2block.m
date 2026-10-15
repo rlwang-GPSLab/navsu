@@ -25,10 +25,14 @@ end
 if nargin < 4
     if const == 2
         source = 3;
+    elseif const == 4
+        source = 2;
     else
         source = 1;
     end
 end
+
+
 
 [svndata, blockText] = navsu.svprn.constSvnData(const,source);
 

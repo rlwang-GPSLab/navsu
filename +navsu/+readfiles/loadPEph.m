@@ -26,7 +26,6 @@ function [Peph,PFileName,PFileNameFull] = loadPEph(Year, dayNum, settings, ...
 %                        'IGS' indicates the IGS final solution
 %   .gloEphCenter      - 3 letter IGS Analysis Center for GLO corrections
 %   .galEphCenter      - 3 letter IGS Analysis Center for GAL corrections
-%   .GloPephSource     - this should be set to 'MGEX'- this is old and bad
 %
 % OPTIONAL INPUTS:
 %  FLAG_NO_LOAD        - True = do not parse the file, just output the name
@@ -48,6 +47,12 @@ function [Peph,PFileName,PFileNameFull] = loadPEph(Year, dayNum, settings, ...
 if dayNum == 0
     Year = Year-1;
     dayNum = navsu.time.YearDays(Year);
+end
+
+if dayNum == -1
+    Year = Year - 1;
+    dayNum = navsu.time.YearDays(Year);
+
 end
 
 % Adjust in case day number is 366 or 367 for year start/end
@@ -108,13 +113,15 @@ else
     
     if all(settings.constUse ==  [1 0 0 0 0])
         
-        if any(strcmp(settings.gpsEphCenter, {'NGA', 'IGS', 'jplu'}))
+        if any(strcmpi(settings.gpsEphCenter, {'NGA', 'IGS', 'jplu'}))
             % individual processing to get PFileName
 
             switch settings.gpsEphCenter
                 case 'NGA'
 
                     if yr >= 2020
+                        PfileNameFormat = 'nga%04d%1d.apc';
+                    elseif yr >= 2017 % added 10-22-2024 RW
                         PfileNameFormat = 'nga%04d%1d.apc';
                     elseif yr == 2017 && dayNum == 125
                         PfileNameFormat = 'NGA%04d%1d.APC';
@@ -339,15 +346,84 @@ end
         pathStr = fullfile(settings.preciseProdDir, sprintf(PpathNameFormat, Year,dayNum));
         if strcmp(ephCenter,'com')
             center3 = 'COD';
+            % convert year and daynum to epochs or 
+            jdCurr = navsu.time.doy2jd(Year, dayNum);
+            jdCh   = navsu.time.doy2jd(2023, 142); % date of last rapid old naming convention
+            if strcmp(settings.solType, 'fin')
+                fname1 = [center3 '0MGXFIN_' num2str(Year,'%04d')  num2str(dayNum,'%03d')];
+            elseif strcmp(settings.solType, 'rap')
+                if jdCurr <= jdCh 
+                    fname1 = ['RAM' num2str(mod(Year, 100)) num2str(dayNum, '%03d') '.PRE'];
+                    fname2 = ['RAC' num2str(mod(Year, 100)) num2str(dayNum, '%03d') '.PRE'];
+                else
+                    fname1 = [center3 '0OPSRAP_' num2str(Year,'%04d')  num2str(dayNum,'%03d')];
+                end
+            elseif strcmp(settings.solType, 'ult')
+                fname1 = [center3 '0OPSULT_' num2str(Year,'%04d')  num2str(dayNum,'%03d')];
+            end
+        elseif strcmp(ephCenter,'wum')
+            center3 = 'WUM';
+            fnameBDS1 = [center3 '0MGXFIN_' num2str(Year,'%04d')  num2str(dayNum,'%03d')];
+            fnameBDS2 = [center3 '0MGXULA_' num2str(Year,'%04d')  num2str(dayNum,'%03d')];
+        elseif strcmp(ephCenter,'gfz')
+            center3 = 'GFZ';
+%             center3 = 'GBM';
+%             fname1 = [center3 '0MGXRAP_' num2str(Year,'%04d')  num2str(dayNum,'%03d')];
+            fname1 = ['0MGXRAP_' num2str(Year,'%04d')  num2str(dayNum,'%03d')];
+
         else
             center3 = upper(ephCenter);
+            fname1 = [center3 '0MGXFIN_' num2str(Year,'%04d')  num2str(dayNum,'%03d')];
         end
-        fname1 = [center3 '0MGXFIN_' num2str(Year,'%04d')  num2str(dayNum,'%03d')];
+%         fname1 = [center3 '0MGXFIN_' num2str(Year,'%04d')  num2str(dayNum,'%03d')];
         % check the directory for a file from that day
+        
         diri = dir(pathStr);
-        fileInd = find(contains({diri.name}, fname1) ...
+%         switch settings.constellation
+%             case 'BDS'
+        switch center3
+            case 'WUM'
+                fileInd = find(contains({diri.name}, fnameBDS1) ...
                      & ~contains({diri.name}, '.gz') ...
                      & contains({diri.name}, 'ORB.SP3'));
+                if isempty(fileInd)
+                    fileInd = find(contains({diri.name}, fnameBDS2) ...
+                     & ~contains({diri.name}, '.gz') ...
+                     & contains({diri.name}, 'ORB.SP3'));
+                end
+                if isempty(fileInd)
+                    fname1 = ['COD' '0MGXFIN_' num2str(Year,'%04d')  num2str(dayNum,'%03d')];
+                    fileInd = find(contains({diri.name}, fname1) ...
+                 & ~contains({diri.name}, '.gz') ...
+                 & contains({diri.name}, 'ORB.SP3'));
+                end
+            otherwise
+                if strcmp(center3, 'COM')
+                    if jdCurr <= jdCh && strcmp(settings.solType, 'rap')
+                        fileInd = find(contains({diri.name}, fname1) ...
+                            & ~contains({diri.name}, '.gz') ...
+                            & contains({diri.name}, '.PRE'));
+                        if isempty(fileInd)
+                            fileInd = find(contains({diri.name}, fname2) ...
+                                & ~contains({diri.name}, '.gz') ...
+                                & contains({diri.name}, '.PRE'));
+                        end
+                    end
+
+                else
+                    fileInd = find(contains({diri.name}, fname1) ...
+                         & ~contains({diri.name}, '.gz') ...
+                         & contains({diri.name}, 'ORB.SP3'));
+                    if isempty(fileInd)
+                        fileInd = find(contains({diri.name}, center3) ...
+                             & contains({diri.name}, 'FIN') ...
+                             & ~contains({diri.name}, '.gz') ...
+                             & contains({diri.name}, 'ORB.SP3'));
+                    end
+                end
+
+        end
+
         
         if ~isempty(fileInd)
             tmp = pathStr;
